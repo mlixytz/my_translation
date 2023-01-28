@@ -95,14 +95,14 @@ def readLangs(lang1, lang2, reversed=False):
 def filterPair(p):
     drop = False
     if is_contains_chinese(p[0]):
-        drop = len(jieba.cut(p[0])) > MAX_LENGTH
+        drop = len(list(jieba.cut(p[0]))) > MAX_LENGTH
     else:
         drop = len(p[0].split(' ')) > MAX_LENGTH
     if drop:
         return False
 
     if is_contains_chinese(p[1]):
-        drop = len(jieba.cut(p[1])) > MAX_LENGTH
+        drop = len(list(jieba.cut(p[1]))) > MAX_LENGTH
     else:
         drop = len(p[1].split(' ')) > MAX_LENGTH
     if drop:
