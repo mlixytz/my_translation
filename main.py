@@ -92,9 +92,34 @@ def readLangs(lang1, lang2, reversed=False):
     return input_lang, output_lang, pairs
 
 
+def filterPair(p):
+    drop = False
+    if is_contains_chinese(p[0]):
+        drop = len(jieba.cut(p[0])) > MAX_LENGTH
+    else:
+        drop = len(p[0].split(' ')) > MAX_LENGTH
+    if drop:
+        return False
+
+    if is_contains_chinese(p[1]):
+        drop = len(jieba.cut(p[1])) > MAX_LENGTH
+    else:
+        drop = len(p[1].split(' ')) > MAX_LENGTH
+    if drop:
+        return False
+
+    return True
+
+
+def filterPairs(pairs):
+    return [pair for pair in pairs if filterPair(pair)]
+
+
 def prepareData(lang1, lang2, reversed=False):
     input_lang, output_lang, pairs = readLangs(lang1, lang2, reversed)
     print("Read %s sentence pairs" % len(pairs))
+    pairs = filterPairs(pairs)
+    print("Trimmed to %s sentence pairs" % len(pairs))
     print("Counting words...")
     for pair in pairs:
         input_lang.addSentence(pair[0])
@@ -277,26 +302,26 @@ def trainIters(encoder, decoder, n_iters, print_every=1000, plot_every=100, lear
     encoder_optimizer = optim.SGD(encoder.parameters(), lr=learning_rate)
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=learning_rate)
     training_pairs = [tensorsFromPair(random.choice(pairs))
-                      for i in range(n_iters)]  #size: n_iters X 2
+                      for _ in range(n_iters)]
     criterion = nn.NLLLoss()
 
-    for iter in range(1, n_iters + 1):
-        training_pair = training_pairs[iter - 1]
+    for i in range(1, n_iters + 1):
+        training_pair = training_pairs[i - 1]
         input_tensor = training_pair[0]
         target_tensor = training_pair[1]
 
-        loss = train(input_tensor, target_tensor, encoder,
-                     decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss = train(input_tensor, target_tensor, encoder, decoder,
+                     encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
         plot_loss_total += loss
 
-        if iter % print_every == 0:
+        if i % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
-            print('%s (%d %d%%) %.4f' % (timeSince(start, iter / n_iters),
-                                         iter, iter / n_iters * 100, print_loss_avg))
+            print('%s (%d %d%%) %.4f' % (timeSince(start, i / n_iters),
+                                         i, i / n_iters * 100, print_loss_avg))
 
-        if iter % plot_every == 0:
+        if i % plot_every == 0:
             plot_loss_avg = plot_loss_total / plot_every
             plot_losses.append(plot_loss_avg)
             plot_loss_total = 0
@@ -355,4 +380,4 @@ if __name__ == '__main__':
     encoder1 = EncoderRNN(input_lang.n_words, hidden_size).to(device)
     attn_decoder1 = AttnDecoderRNN(hidden_size, output_lang.n_words, dropout_p=0.1).to(device)
 
-    trainIters(encoder1, attn_decoder1, 75000, print_every=5000)
+    trainIters(encoder1, attn_decoder1, 75000, print_every=1000)
